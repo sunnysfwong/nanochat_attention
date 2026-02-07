@@ -16,6 +16,7 @@ Usage (drop-in replacement for FA3):
 import torch
 import torch.nn.functional as F
 
+from .silly_attention import silly_attention
 
 # =============================================================================
 # Detection: Try to load FA3 on Hopper+ GPUs
@@ -69,7 +70,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
 
     # Full context, same length
     if (window < 0 or window >= Tq) and Tq == Tk:
-        return F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=enable_gqa)
+        return silly_attention(q, k, v, is_causal=True, enable_gqa=enable_gqa)
 
     # Single token generation
     if Tq == 1:
@@ -78,7 +79,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
             start = max(0, Tk - (window + 1))
             k = k[:, :, start:, :]
             v = v[:, :, start:, :]
-        return F.scaled_dot_product_attention(q, k, v, is_causal=False, enable_gqa=enable_gqa)
+        return silly_attention(q, k, v, is_causal=False, enable_gqa=enable_gqa)
 
     # Need explicit mask for sliding window/chunk inference
     device = q.device
@@ -91,7 +92,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
     if window >= 0 and window < Tk:
         mask = mask & ((row_idx - col_idx) <= window)
     
-    return F.scaled_dot_product_attention(q, k, v, attn_mask=mask, enable_gqa=enable_gqa)
+    return silly_attention(q, k, v, attn_mask=mask, enable_gqa=enable_gqa)
 
 # =============================================================================
 # Public API: Same interface as FA3
@@ -108,8 +109,8 @@ def flash_attn_func(q, k, v, causal=False, window_size=(-1, -1)):
     Returns:
         Output tensor of shape (B, T, H, D)
     """
-    if _use_fa3():
-        return _fa3.flash_attn_func(q, k, v, causal=causal, window_size=window_size)
+    # if _use_fa3():
+    #     return _fa3.flash_attn_func(q, k, v, causal=causal, window_size=window_size)
 
     # SDPA fallback: transpose (B, T, H, D) -> (B, H, T, D)
     q = q.transpose(1, 2)
@@ -138,11 +139,11 @@ def flash_attn_with_kvcache(q, k_cache, v_cache, k=None, v=None, cache_seqlens=N
     Returns:
         Output tensor of shape (B, T_new, H, D)
     """
-    if _use_fa3():
-        return _fa3.flash_attn_with_kvcache(
-            q, k_cache, v_cache, k=k, v=v, cache_seqlens=cache_seqlens,
-            causal=causal, window_size=window_size
-        )
+    # if _use_fa3():
+    #     return _fa3.flash_attn_with_kvcache(
+    #         q, k_cache, v_cache, k=k, v=v, cache_seqlens=cache_seqlens,
+    #         causal=causal, window_size=window_size
+    #     )
 
     # SDPA fallback: manually manage KV cache
     B, T_new, H, D = q.shape
