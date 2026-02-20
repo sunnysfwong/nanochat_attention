@@ -16,7 +16,8 @@ Usage (drop-in replacement for FA3):
 import torch
 import torch.nn.functional as F
 
-from .silly_attention import silly_attention
+# from .silly_attention import silly_attention as attention_fn
+from .ls_attention import ls_attention as attention_fn
 
 # =============================================================================
 # Detection: Try to load FA3 on Hopper+ GPUs
@@ -70,7 +71,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
 
     # Full context, same length
     if (window < 0 or window >= Tq) and Tq == Tk:
-        return silly_attention(q, k, v, is_causal=True, enable_gqa=enable_gqa)
+        return attention_fn(q, k, v, is_causal=True, enable_gqa=enable_gqa)
 
     # Single token generation
     if Tq == 1:
@@ -79,7 +80,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
             start = max(0, Tk - (window + 1))
             k = k[:, :, start:, :]
             v = v[:, :, start:, :]
-        return silly_attention(q, k, v, is_causal=False, enable_gqa=enable_gqa)
+        return attention_fn(q, k, v, is_causal=False, enable_gqa=enable_gqa)
 
     # Need explicit mask for sliding window/chunk inference
     device = q.device
@@ -92,7 +93,7 @@ def _sdpa_attention(q, k, v, window_size, enable_gqa):
     if window >= 0 and window < Tk:
         mask = mask & ((row_idx - col_idx) <= window)
     
-    return silly_attention(q, k, v, attn_mask=mask, enable_gqa=enable_gqa)
+    return attention_fn(q, k, v, attn_mask=mask, enable_gqa=enable_gqa)
 
 # =============================================================================
 # Public API: Same interface as FA3
