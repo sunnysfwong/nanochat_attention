@@ -16,13 +16,15 @@ Usage (drop-in replacement for FA3):
 import torch
 import torch.nn.functional as F
 
-# from .silly_attention import silly_attention as attention_fn
-from .ls_attention import ls_attention as attention_fn
+# attention_fn = F.scaled_dot_product_attention
+from .silly_attention import silly_attention as attention_fn
+# from .mesa_attention import mesa_attention as attention_fn
 
 # =============================================================================
 # Detection: Try to load FA3 on Hopper+ GPUs
 # =============================================================================
 def _load_flash_attention_3():
+    return None
     """Try to load Flash Attention 3 (requires Hopper GPU, sm90)."""
     if not torch.cuda.is_available():
         return None
